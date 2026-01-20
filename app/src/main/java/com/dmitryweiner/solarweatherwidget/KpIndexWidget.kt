@@ -10,16 +10,17 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.util.Log
 import android.widget.RemoteViews
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
-import java.io.ByteArrayOutputStream
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
+import javax.net.ssl.HttpsURLConnection
 
 class KpIndexWidget : AppWidgetProvider() {
 
@@ -28,6 +29,7 @@ class KpIndexWidget : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        Log.d(TAG, "onUpdate called for ${appWidgetIds.size} widgets")
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
@@ -35,6 +37,7 @@ class KpIndexWidget : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
+        Log.d(TAG, "onReceive: ${intent.action}")
         if (intent.action == ACTION_UPDATE) {
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(
@@ -45,13 +48,15 @@ class KpIndexWidget : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_UPDATE = "com.dmitryweiner.kpwidget.ACTION_UPDATE"
+        private const val TAG = "KpIndexWidget"
+        const val ACTION_UPDATE = "com.example.kpwidget.ACTION_UPDATE"
 
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
+            Log.d(TAG, "updateAppWidget called for widget $appWidgetId")
             val views = RemoteViews(context.packageName, R.layout.kp_index_widget)
 
             // Настройка обновления по клику
@@ -64,46 +69,95 @@ class KpIndexWidget : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
 
+            // Показываем статус загрузки
+            views.setTextViewText(R.id.last_update, "Загрузка...")
             appWidgetManager.updateAppWidget(appWidgetId, views)
 
             // Загрузка данных
             CoroutineScope(Dispatchers.Main).launch {
                 try {
+                    Log.d(TAG, "Starting data fetch...")
                     val data = fetchKpData()
+                    Log.d(TAG, "Data fetched successfully: ${data.size} items")
+
                     val bitmap = createChartBitmap(data, context)
+                    Log.d(TAG, "Chart bitmap created")
+
                     views.setImageViewBitmap(R.id.chart_image, bitmap)
                     views.setTextViewText(R.id.last_update, "Обновлено: ${getCurrentTime()}")
                     appWidgetManager.updateAppWidget(appWidgetId, views)
+                    Log.d(TAG, "Widget updated successfully")
                 } catch (e: Exception) {
-                    views.setTextViewText(R.id.last_update, "Ошибка загрузки")
+                    Log.e(TAG, "Error updating widget", e)
+                    views.setTextViewText(R.id.last_update, "Ошибка: ${e.message}")
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                 }
             }
         }
 
         private suspend fun fetchKpData(): List<KpData> = withContext(Dispatchers.IO) {
-            val url = URL("https://services.swpc.noaa.gov/json/planetary_k_index_1m.json")
-            val jsonString = url.readText()
-            val jsonArray = JSONArray(jsonString)
+            try {
+                Log.d(TAG, "Fetching data from NOAA API...")
+                val url = URL("https://services.swpc.noaa.gov/json/planetary_k_index_1m.json")
+                val connection = url.openConnection() as HttpsURLConnection
 
-            val dataList = mutableListOf<KpData>()
-            // Берем последние 12 записей
-            val startIndex = maxOf(0, jsonArray.length() - 12)
-            for (i in startIndex until jsonArray.length()) {
-                val obj = jsonArray.getJSONObject(i)
-                dataList.add(
-                    KpData(
-                        timeTag = obj.getString("time_tag"),
-                        kpIndex = obj.getDouble("Kp")
-                    )
-                )
+                connection.apply {
+                    requestMethod = "GET"
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    setRequestProperty("User-Agent", "KpIndexWidget/1.0")
+                }
+
+                val responseCode = connection.responseCode
+                Log.d(TAG, "Response code: $responseCode")
+
+                if (responseCode != 200) {
+                    throw Exception("HTTP error: $responseCode")
+                }
+
+                val jsonString = connection.inputStream.bufferedReader().use { it.readText() }
+                Log.d(TAG, "JSON received, length: ${jsonString.length}")
+
+                val jsonArray = JSONArray(jsonString)
+                Log.d(TAG, "JSON parsed, array length: ${jsonArray.length()}")
+
+                val dataList = mutableListOf<KpData>()
+                // Берем последние 8 записей (по одной на каждый 3-часовой период)
+                // Данные обновляются каждую минуту, поэтому берем каждую 180-ю запись
+                val totalRecords = jsonArray.length()
+                val recordsToTake = 8
+                val step = 180 // 3 часа = 180 минут
+
+                // Берем данные с интервалом в 3 часа (180 минут)
+                for (i in 0 until recordsToTake) {
+                    val index = maxOf(0, totalRecords - (recordsToTake - i) * step)
+                    if (index < totalRecords) {
+                        val obj = jsonArray.getJSONObject(index)
+                        val timeTag = obj.getString("time_tag")
+                        // Используем estimated_kp для более точных значений, fallback на kp_index
+                        val kpIndex = if (obj.has("estimated_kp")) {
+                            obj.getDouble("estimated_kp")
+                        } else {
+                            obj.getInt("kp_index").toDouble()
+                        }
+                        dataList.add(KpData(timeTag, kpIndex))
+                        Log.d(TAG, "Data point: time=$timeTag, Kp=$kpIndex")
+                    }
+                }
+
+                connection.disconnect()
+                dataList
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching data", e)
+                throw e
             }
-            dataList
         }
 
-        private fun createChartBitmap(data: List<KpData>, _context: Context): Bitmap {
+        private fun createChartBitmap(data: List<KpData>, context: Context): Bitmap {
+            Log.d(TAG, "Creating chart bitmap with ${data.size} data points")
+
             val width = 800
-            val height = 400
+            val height = 300  // Уменьшена высота для более компактного виджета
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
 
@@ -120,7 +174,7 @@ class KpIndexWidget : AppWidgetProvider() {
 
             val textPaint = Paint().apply {
                 color = 0xFFFFFFFF.toInt()
-                textSize = 24f
+                textSize = 20f  // Уменьшен размер текста
                 isAntiAlias = true
             }
 
@@ -134,14 +188,15 @@ class KpIndexWidget : AppWidgetProvider() {
 
             if (data.isEmpty()) {
                 canvas.drawText("Нет данных", width / 2f - 50f, height / 2f, textPaint)
+                Log.w(TAG, "No data to display")
                 return bitmap
             }
 
             // Параметры графика
-            val padding = 60f
+            val padding = 50f  // Уменьшен отступ
             val chartWidth = width - 2 * padding
             val chartHeight = height - 2 * padding
-            val barWidth = chartWidth / data.size - 10f
+            val barWidth = chartWidth / data.size - 8f  // Уменьшен отступ между столбцами
             val maxKp = 9.0 // Максимальное значение Kp индекса
 
             // Сетка
@@ -154,7 +209,7 @@ class KpIndexWidget : AppWidgetProvider() {
             // Столбцы
             data.forEachIndexed { index, kpData ->
                 val barHeight = (kpData.kpIndex / maxKp * chartHeight).toFloat()
-                val x = padding + index * (barWidth + 10f)
+                val x = padding + index * (barWidth + 8f)
                 val y = height - padding - barHeight
 
                 // Цвет в зависимости от значения Kp
@@ -170,9 +225,11 @@ class KpIndexWidget : AppWidgetProvider() {
 
                 // Значение над столбцом
                 val valueText = String.format("%.1f", kpData.kpIndex)
-                canvas.drawText(valueText, x + barWidth / 2 - 15f, y - 5f, textPaint)
+                val textWidth = textPaint.measureText(valueText)
+                canvas.drawText(valueText, x + barWidth / 2 - textWidth / 2, y - 5f, textPaint)
             }
 
+            Log.d(TAG, "Chart bitmap created successfully")
             return bitmap
         }
 
