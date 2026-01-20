@@ -122,10 +122,9 @@ class KpIndexWidget : AppWidgetProvider() {
                 Log.d(TAG, "JSON parsed, array length: ${jsonArray.length()}")
 
                 val dataList = mutableListOf<KpData>()
-                // Берем последние 8 записей (по одной на каждый 3-часовой период)
-                // Данные обновляются каждую минуту, поэтому берем каждую 180-ю запись
+                // Берем данные за 3 дня (24 записи по 8 в день, каждые 3 часа)
                 val totalRecords = jsonArray.length()
-                val recordsToTake = 8
+                val recordsToTake = 24 // 3 дня × 8 измерений
                 val step = 180 // 3 часа = 180 минут
 
                 // Берем данные с интервалом в 3 часа (180 минут)
@@ -156,8 +155,8 @@ class KpIndexWidget : AppWidgetProvider() {
         private fun createChartBitmap(data: List<KpData>, context: Context): Bitmap {
             Log.d(TAG, "Creating chart bitmap with ${data.size} data points")
 
-            val width = 800
-            val height = 300  // Уменьшена высота для более компактного виджета
+            val width = 900
+            val height = 380
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
 
@@ -174,7 +173,19 @@ class KpIndexWidget : AppWidgetProvider() {
 
             val textPaint = Paint().apply {
                 color = 0xFFFFFFFF.toInt()
-                textSize = 20f  // Уменьшен размер текста
+                textSize = 18f
+                isAntiAlias = true
+            }
+
+            val axisTextPaint = Paint().apply {
+                color = 0xFFAAAAAA.toInt()
+                textSize = 16f
+                isAntiAlias = true
+            }
+
+            val dateTextPaint = Paint().apply {
+                color = 0xFF8BC34A.toInt() // Зеленый для дат
+                textSize = 18f
                 isAntiAlias = true
             }
 
@@ -193,24 +204,41 @@ class KpIndexWidget : AppWidgetProvider() {
             }
 
             // Параметры графика
-            val padding = 50f  // Уменьшен отступ
-            val chartWidth = width - 2 * padding
-            val chartHeight = height - 2 * padding
-            val barWidth = chartWidth / data.size - 8f  // Уменьшен отступ между столбцами
+            val paddingLeft = 45f
+            val paddingRight = 45f
+            val paddingTop = 30f
+            val paddingBottom = 70f // Увеличен отступ снизу для подписей
+            val chartWidth = width - paddingLeft - paddingRight
+            val chartHeight = height - paddingTop - paddingBottom
+            val barSpacing = 3f
+            val barWidth = (chartWidth / data.size) - barSpacing
             val maxKp = 9.0 // Максимальное значение Kp индекса
 
-            // Сетка
+            // Горизонтальные линии сетки и подписи оси Y
             for (i in 0..9) {
-                val y = height - padding - (chartHeight / 9 * i)
-                canvas.drawLine(padding, y, width - padding, y, gridPaint)
-                canvas.drawText(i.toString(), 10f, y + 5f, textPaint)
+                val y = height - paddingBottom - (chartHeight / 9 * i)
+                canvas.drawLine(paddingLeft, y, width - paddingRight, y, gridPaint)
+                canvas.drawText(i.toString(), 12f, y + 5f, axisTextPaint)
             }
+
+            // Подпись оси Y
+            val yAxisPaint = Paint(textPaint).apply {
+                textSize = 16f
+                color = 0xFFCCCCCC.toInt()
+            }
+
+            // Формат для парсинга времени из API
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+            val dateFormat = SimpleDateFormat("d MMM", Locale.getDefault())
+
+            var lastDate = ""
 
             // Столбцы
             data.forEachIndexed { index, kpData ->
                 val barHeight = (kpData.kpIndex / maxKp * chartHeight).toFloat()
-                val x = padding + index * (barWidth + 8f)
-                val y = height - padding - barHeight
+                val x = paddingLeft + index * (barWidth + barSpacing)
+                val y = height - paddingBottom - barHeight
 
                 // Цвет в зависимости от значения Kp
                 barPaint.color = when {
@@ -220,13 +248,54 @@ class KpIndexWidget : AppWidgetProvider() {
                     else -> 0xFFF44336.toInt() // Красный
                 }
 
-                val rect = RectF(x, y, x + barWidth, height - padding)
+                val rect = RectF(x, y, x + barWidth, height - paddingBottom)
                 canvas.drawRect(rect, barPaint)
 
-                // Значение над столбцом
-                val valueText = String.format("%.1f", kpData.kpIndex)
-                val textWidth = textPaint.measureText(valueText)
-                canvas.drawText(valueText, x + barWidth / 2 - textWidth / 2, y - 5f, textPaint)
+                // Парсим время для подписей оси X
+                try {
+                    val date = inputFormat.parse(kpData.timeTag)
+                    if (date != null) {
+                        val time = timeFormat.format(date)
+                        val dateStr = dateFormat.format(date)
+                        val hour = time.substring(0, 2).toIntOrNull() ?: 0
+
+                        // Показываем время каждые 6 часов (00:00, 06:00, 12:00, 18:00)
+                        if (hour % 6 == 0) {
+                            val timeText = time
+                            val textWidth = axisTextPaint.measureText(timeText)
+                            canvas.drawText(
+                                timeText,
+                                x + barWidth / 2 - textWidth / 2,
+                                height - paddingBottom + 20f,
+                                axisTextPaint
+                            )
+                        }
+
+                        // Показываем дату в начале каждого нового дня
+                        if (dateStr != lastDate && hour == 0) {
+                            val dateWidth = dateTextPaint.measureText(dateStr)
+                            canvas.drawText(
+                                dateStr,
+                                x + barWidth / 2 - dateWidth / 2,
+                                height - paddingBottom + 40f,
+                                dateTextPaint
+                            )
+                            lastDate = dateStr
+                        } else if (lastDate.isEmpty()) {
+                            // Показываем первую дату
+                            val dateWidth = dateTextPaint.measureText(dateStr)
+                            canvas.drawText(
+                                dateStr,
+                                x + barWidth / 2 - dateWidth / 2,
+                                height - paddingBottom + 40f,
+                                dateTextPaint
+                            )
+                            lastDate = dateStr
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing time: ${kpData.timeTag}", e)
+                }
             }
 
             Log.d(TAG, "Chart bitmap created successfully")
