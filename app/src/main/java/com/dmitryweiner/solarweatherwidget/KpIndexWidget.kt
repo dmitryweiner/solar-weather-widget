@@ -19,7 +19,9 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.URL
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import javax.net.ssl.HttpsURLConnection
 
 class KpIndexWidget : AppWidgetProvider() {
@@ -98,7 +100,7 @@ class KpIndexWidget : AppWidgetProvider() {
         private suspend fun fetchKpData(): List<KpData> = withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Fetching data from NOAA API...")
-                val url = URL("https://services.swpc.noaa.gov/json/planetary_k_index_1m.json")
+                val url = URL("https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json")
                 val connection = url.openConnection() as HttpsURLConnection
 
                 connection.apply {
@@ -122,30 +124,31 @@ class KpIndexWidget : AppWidgetProvider() {
                 Log.d(TAG, "JSON parsed, array length: ${jsonArray.length()}")
 
                 val dataList = mutableListOf<KpData>()
-                // Берем данные за 3 дня (24 записи по 8 в день, каждые 3 часа)
-                val totalRecords = jsonArray.length()
-                val recordsToTake = 24 // 3 дня × 8 измерений
-                val step = 180 // 3 часа = 180 минут
-
-                // Берем данные с интервалом в 3 часа (180 минут)
-                for (i in 0 until recordsToTake) {
-                    val index = maxOf(0, totalRecords - (recordsToTake - i) * step)
-                    if (index < totalRecords) {
-                        val obj = jsonArray.getJSONObject(index)
-                        val timeTag = obj.getString("time_tag")
-                        // Используем estimated_kp для более точных значений, fallback на kp_index
-                        val kpIndex = if (obj.has("estimated_kp")) {
-                            obj.getDouble("estimated_kp")
-                        } else {
-                            obj.getInt("kp_index").toDouble()
-                        }
-                        dataList.add(KpData(timeTag, kpIndex))
-                        Log.d(TAG, "Data point: time=$timeTag, Kp=$kpIndex")
-                    }
+                
+                // Формат: массив массивов, первый элемент — заголовки
+                // ["time_tag", "Kp", "a_running", "station_count"]
+                // ["2026-01-13 00:00:00.000", "3.67", "22", "8"]
+                
+                // Пропускаем первый элемент (заголовки), начинаем с 1
+                for (i in 1 until jsonArray.length()) {
+                    val row = jsonArray.getJSONArray(i)
+                    val timeTag = row.getString(0) // "2026-01-13 00:00:00.000"
+                    val kpValue = row.getString(1).toDoubleOrNull() ?: 0.0
+                    
+                    dataList.add(KpData(timeTag, kpValue))
+                    Log.d(TAG, "Data point: time=$timeTag, Kp=$kpValue")
                 }
-
+                
+                // Берём последние 24 периода (3 дня)
+                val result = if (dataList.size > 24) {
+                    dataList.takeLast(24)
+                } else {
+                    dataList
+                }
+                
                 connection.disconnect()
-                dataList
+                Log.d(TAG, "Total periods: ${result.size}")
+                result
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching data", e)
                 throw e
@@ -156,7 +159,7 @@ class KpIndexWidget : AppWidgetProvider() {
             Log.d(TAG, "Creating chart bitmap with ${data.size} data points")
 
             val width = 900
-            val height = 380
+            val height = 420
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
 
@@ -179,13 +182,13 @@ class KpIndexWidget : AppWidgetProvider() {
 
             val axisTextPaint = Paint().apply {
                 color = 0xFFAAAAAA.toInt()
-                textSize = 16f
+                textSize = 14f
                 isAntiAlias = true
             }
 
             val dateTextPaint = Paint().apply {
-                color = 0xFF8BC34A.toInt() // Зеленый для дат
-                textSize = 18f
+                color = 0xFF8BC34A.toInt() // Зелёный для дат
+                textSize = 14f
                 isAntiAlias = true
             }
 
@@ -204,13 +207,13 @@ class KpIndexWidget : AppWidgetProvider() {
             }
 
             // Параметры графика
-            val paddingLeft = 45f
-            val paddingRight = 45f
-            val paddingTop = 30f
-            val paddingBottom = 70f // Увеличен отступ снизу для подписей
+            val paddingLeft = 35f
+            val paddingRight = 15f
+            val paddingTop = 15f
+            val paddingBottom = 110f // Увеличен отступ снизу для вертикальных подписей
             val chartWidth = width - paddingLeft - paddingRight
             val chartHeight = height - paddingTop - paddingBottom
-            val barSpacing = 3f
+            val barSpacing = 2f
             val barWidth = (chartWidth / data.size) - barSpacing
             val maxKp = 9.0 // Максимальное значение Kp индекса
 
@@ -218,21 +221,16 @@ class KpIndexWidget : AppWidgetProvider() {
             for (i in 0..9) {
                 val y = height - paddingBottom - (chartHeight / 9 * i)
                 canvas.drawLine(paddingLeft, y, width - paddingRight, y, gridPaint)
-                canvas.drawText(i.toString(), 12f, y + 5f, axisTextPaint)
+                canvas.drawText(i.toString(), 10f, y + 5f, axisTextPaint)
             }
 
-            // Подпись оси Y
-            val yAxisPaint = Paint(textPaint).apply {
-                textSize = 16f
-                color = 0xFFCCCCCC.toInt()
-            }
-
-            // Формат для парсинга времени из API
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            // Формат для парсинга времени из API (формат: "2026-01-13 00:00:00.000")
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+            inputFormat.timeZone = TimeZone.getTimeZone("UTC")
             val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
             val dateFormat = SimpleDateFormat("d MMM", Locale.getDefault())
 
-            var lastDate = ""
+            var lastDateStr = ""
 
             // Столбцы
             data.forEachIndexed { index, kpData ->
@@ -242,8 +240,8 @@ class KpIndexWidget : AppWidgetProvider() {
 
                 // Цвет в зависимости от значения Kp
                 barPaint.color = when {
-                    kpData.kpIndex < 4 -> 0xFF4CAF50.toInt() // Зеленый
-                    kpData.kpIndex < 6 -> 0xFFFFC107.toInt() // Желтый
+                    kpData.kpIndex < 4 -> 0xFF4CAF50.toInt() // Зелёный
+                    kpData.kpIndex < 6 -> 0xFFFFC107.toInt() // Жёлтый
                     kpData.kpIndex < 8 -> 0xFFFF9800.toInt() // Оранжевый
                     else -> 0xFFF44336.toInt() // Красный
                 }
@@ -259,38 +257,22 @@ class KpIndexWidget : AppWidgetProvider() {
                         val dateStr = dateFormat.format(date)
                         val hour = time.substring(0, 2).toIntOrNull() ?: 0
 
-                        // Показываем время каждые 6 часов (00:00, 06:00, 12:00, 18:00)
-                        if (hour % 6 == 0) {
-                            val timeText = time
-                            val textWidth = axisTextPaint.measureText(timeText)
-                            canvas.drawText(
-                                timeText,
-                                x + barWidth / 2 - textWidth / 2,
-                                height - paddingBottom + 20f,
-                                axisTextPaint
-                            )
-                        }
+                        // Вертикальная подпись времени под каждым столбцом
+                        val labelX = x + barWidth / 2
+                        val labelY = height - paddingBottom + 15f
+                        
+                        canvas.save()
+                        canvas.rotate(-90f, labelX, labelY)
+                        canvas.drawText(time, labelX, labelY + 4f, axisTextPaint)
+                        canvas.restore()
 
-                        // Показываем дату в начале каждого нового дня
-                        if (dateStr != lastDate && hour == 0) {
-                            val dateWidth = dateTextPaint.measureText(dateStr)
-                            canvas.drawText(
-                                dateStr,
-                                x + barWidth / 2 - dateWidth / 2,
-                                height - paddingBottom + 40f,
-                                dateTextPaint
-                            )
-                            lastDate = dateStr
-                        } else if (lastDate.isEmpty()) {
-                            // Показываем первую дату
-                            val dateWidth = dateTextPaint.measureText(dateStr)
-                            canvas.drawText(
-                                dateStr,
-                                x + barWidth / 2 - dateWidth / 2,
-                                height - paddingBottom + 40f,
-                                dateTextPaint
-                            )
-                            lastDate = dateStr
+                        // Показываем дату под временем при смене дня или для первого элемента
+                        if (dateStr != lastDateStr) {
+                            canvas.save()
+                            canvas.rotate(-90f, labelX, labelY + 55f)
+                            canvas.drawText(dateStr, labelX, labelY + 59f, dateTextPaint)
+                            canvas.restore()
+                            lastDateStr = dateStr
                         }
                     }
                 } catch (e: Exception) {
