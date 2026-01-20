@@ -1,6 +1,11 @@
 # Kp Index Widget for Android
 
 An Android home screen widget that displays the Planetary K-index (Kp) - a measure of geomagnetic activity - as a bar chart with real-time data from NOAA.
+Data are taken from this site https://www.swpc.noaa.gov/
+
+<img width="285" height="172" alt="image" src="https://github.com/user-attachments/assets/54fb69a3-30ad-4702-a94c-a42c49944cc7" />
+
+### [Download widget](https://github.com/dmitryweiner/solar-weather-widget/raw/refs/heads/main/app-debug.apk)
 
 ## Features
 
