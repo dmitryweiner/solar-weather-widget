@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Solar Weather</string>
+    <string name="widget_title">Planetary K-Index</string>
+    <string name="loading">Loading…</string>
+    <string name="updated_at">Updated: %s</string>
+    <string name="updated_placeholder">Updated: --:--</string>
+    <string name="error_prefix">Error: %s</string>
+    <string name="no_data">No data</string>
+    <string name="chart_description">K-Index Chart</string>
+    <string name="widget_description">Displays the planetary K-index of geomagnetic activity</string>
+    <string name="widget_add_instruction">Long press on your home screen and select \"Widgets\" to add the widget</string>
+    <string name="widget_already_added">Widget is already on the home screen</string>
+</resources>

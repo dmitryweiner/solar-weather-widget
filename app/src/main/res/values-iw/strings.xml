@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">מזג אוויר סולארי</string>
+    <string name="widget_title">מדד K פלנטרי</string>
+    <string name="loading">טוען…</string>
+    <string name="updated_at">עודכן: %s</string>
+    <string name="updated_placeholder">עודכן: --:--</string>
+    <string name="error_prefix">שגיאה: %s</string>
+    <string name="no_data">אין נתונים</string>
+    <string name="chart_description">תרשים מדד K</string>
+    <string name="widget_description">מציג את מדד K הפלנטרי של פעילות גיאומגנטית</string>
+    <string name="widget_add_instruction">לחץ לחיצה ארוכה על מסך הבית ובחר \"וידג\'טים\" כדי להוסיף את הווידג\'ט</string>
+    <string name="widget_already_added">הווידג\'ט כבר נמצא במסך הבית</string>
+</resources>

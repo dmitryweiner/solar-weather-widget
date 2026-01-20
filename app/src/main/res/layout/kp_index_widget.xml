@@ -11,7 +11,7 @@
         android:id="@+id/widget_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Планетарный K-индекс"
+        android:text="@string/widget_title"
         android:textSize="16sp"
         android:textColor="#FFFFFF"
         android:gravity="center"
@@ -23,13 +23,13 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:scaleType="fitCenter"
-        android:contentDescription="График K-индекса"/>
+        android:contentDescription="@string/chart_description"/>
 
     <TextView
         android:id="@+id/last_update"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Обновлено: --:--"
+        android:text="@string/updated_placeholder"
         android:textSize="12sp"
         android:textColor="#AAAAAA"
         android:gravity="center"

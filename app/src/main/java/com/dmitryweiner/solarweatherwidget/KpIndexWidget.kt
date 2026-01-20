@@ -10,7 +10,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.RemoteViews
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,8 +35,24 @@ class KpIndexWidget : AppWidgetProvider() {
     ) {
         Log.d(TAG, "onUpdate called for ${appWidgetIds.size} widgets")
         for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
+            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
+            val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)
+            updateAppWidget(context, appWidgetManager, appWidgetId, minWidth, minHeight)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        val minWidth = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
+        val minHeight = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)
+        Log.d(TAG, "onAppWidgetOptionsChanged: width=$minWidth, height=$minHeight")
+        updateAppWidget(context, appWidgetManager, appWidgetId, minWidth, minHeight)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -56,9 +74,11 @@ class KpIndexWidget : AppWidgetProvider() {
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
-            appWidgetId: Int
+            appWidgetId: Int,
+            widgetWidth: Int = 250,
+            widgetHeight: Int = 110
         ) {
-            Log.d(TAG, "updateAppWidget called for widget $appWidgetId")
+            Log.d(TAG, "updateAppWidget called for widget $appWidgetId (${widgetWidth}x${widgetHeight}dp)")
             val views = RemoteViews(context.packageName, R.layout.kp_index_widget)
 
             // Настройка обновления по клику
@@ -71,27 +91,50 @@ class KpIndexWidget : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
 
+            // Adaptive height: hide title when height is 1 cell (~80dp or less)
+            if (widgetHeight < 80) {
+                views.setViewVisibility(R.id.widget_title, View.GONE)
+            } else {
+                views.setViewVisibility(R.id.widget_title, View.VISIBLE)
+            }
+
+            // Calculate data points based on width
+            val dataPointsCount = when {
+                widgetWidth >= 300 -> 24
+                widgetWidth >= 200 -> 16
+                widgetWidth >= 120 -> 8
+                else -> 4
+            }
+            Log.d(TAG, "Data points to show: $dataPointsCount")
+
             // Показываем статус загрузки
-            views.setTextViewText(R.id.last_update, "Загрузка...")
+            views.setTextViewText(R.id.last_update, context.getString(R.string.loading))
             appWidgetManager.updateAppWidget(appWidgetId, views)
 
             // Загрузка данных
             CoroutineScope(Dispatchers.Main).launch {
                 try {
                     Log.d(TAG, "Starting data fetch...")
-                    val data = fetchKpData()
-                    Log.d(TAG, "Data fetched successfully: ${data.size} items")
+                    val allData = fetchKpData()
+                    Log.d(TAG, "Data fetched successfully: ${allData.size} items")
 
-                    val bitmap = createChartBitmap(data, context)
+                    // Limit data points based on widget width
+                    val data = if (allData.size > dataPointsCount) {
+                        allData.takeLast(dataPointsCount)
+                    } else {
+                        allData
+                    }
+
+                    val bitmap = createChartBitmap(data, context, dataPointsCount)
                     Log.d(TAG, "Chart bitmap created")
 
                     views.setImageViewBitmap(R.id.chart_image, bitmap)
-                    views.setTextViewText(R.id.last_update, "Обновлено: ${getCurrentTime()}")
+                    views.setTextViewText(R.id.last_update, context.getString(R.string.updated_at, getCurrentTime()))
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                     Log.d(TAG, "Widget updated successfully")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error updating widget", e)
-                    views.setTextViewText(R.id.last_update, "Ошибка: ${e.message}")
+                    views.setTextViewText(R.id.last_update, context.getString(R.string.error_prefix, e.message))
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                 }
             }
@@ -155,7 +198,7 @@ class KpIndexWidget : AppWidgetProvider() {
             }
         }
 
-        private fun createChartBitmap(data: List<KpData>, context: Context): Bitmap {
+        private fun createChartBitmap(data: List<KpData>, context: Context, dataPointsCount: Int = 24): Bitmap {
             Log.d(TAG, "Creating chart bitmap with ${data.size} data points")
 
             val width = 900
@@ -182,13 +225,13 @@ class KpIndexWidget : AppWidgetProvider() {
 
             val axisTextPaint = Paint().apply {
                 color = 0xFFAAAAAA.toInt()
-                textSize = 14f
+                textSize = 20f  // Increased label size
                 isAntiAlias = true
             }
 
             val dateTextPaint = Paint().apply {
                 color = 0xFF8BC34A.toInt() // Зелёный для дат
-                textSize = 14f
+                textSize = 22f  // Increased label size
                 isAntiAlias = true
             }
 
@@ -201,7 +244,7 @@ class KpIndexWidget : AppWidgetProvider() {
             canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
 
             if (data.isEmpty()) {
-                canvas.drawText("Нет данных", width / 2f - 50f, height / 2f, textPaint)
+                canvas.drawText(context.getString(R.string.no_data), width / 2f - 50f, height / 2f, textPaint)
                 Log.w(TAG, "No data to display")
                 return bitmap
             }
@@ -210,7 +253,7 @@ class KpIndexWidget : AppWidgetProvider() {
             val paddingLeft = 35f
             val paddingRight = 15f
             val paddingTop = 15f
-            val paddingBottom = 110f // Увеличен отступ снизу для вертикальных подписей
+            val paddingBottom = 45f // Reduced padding for horizontal DD.MM labels
             val chartWidth = width - paddingLeft - paddingRight
             val chartHeight = height - paddingTop - paddingBottom
             val barSpacing = 2f
@@ -227,9 +270,15 @@ class KpIndexWidget : AppWidgetProvider() {
             // Формат для парсинга времени из API (формат: "2026-01-13 00:00:00.000")
             val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
             inputFormat.timeZone = TimeZone.getTimeZone("UTC")
-            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-            val dateFormat = SimpleDateFormat("d MMM", Locale.getDefault())
+            val dateFormat = SimpleDateFormat("dd.MM", Locale.getDefault())
 
+            // Calculate label interval based on data points count (fewer points = fewer labels)
+            val maxLabels = when {
+                dataPointsCount >= 16 -> 5
+                dataPointsCount >= 8 -> 4
+                else -> 3
+            }
+            val labelInterval = maxOf(1, data.size / maxLabels)
             var lastDateStr = ""
 
             // Столбцы
@@ -249,29 +298,20 @@ class KpIndexWidget : AppWidgetProvider() {
                 val rect = RectF(x, y, x + barWidth, height - paddingBottom)
                 canvas.drawRect(rect, barPaint)
 
-                // Парсим время для подписей оси X
+                // Парсим время для подписей оси X (только DD.MM, горизонтально)
                 try {
                     val date = inputFormat.parse(kpData.timeTag)
                     if (date != null) {
-                        val time = timeFormat.format(date)
                         val dateStr = dateFormat.format(date)
-                        val hour = time.substring(0, 2).toIntOrNull() ?: 0
 
-                        // Вертикальная подпись времени под каждым столбцом
-                        val labelX = x + barWidth / 2
-                        val labelY = height - paddingBottom + 15f
-                        
-                        canvas.save()
-                        canvas.rotate(-90f, labelX, labelY)
-                        canvas.drawText(time, labelX, labelY + 4f, axisTextPaint)
-                        canvas.restore()
-
-                        // Показываем дату под временем при смене дня или для первого элемента
-                        if (dateStr != lastDateStr) {
-                            canvas.save()
-                            canvas.rotate(-90f, labelX, labelY + 55f)
-                            canvas.drawText(dateStr, labelX, labelY + 59f, dateTextPaint)
-                            canvas.restore()
+                        // Show label at regular intervals, but skip if same date was just shown
+                        if (index % labelInterval == 0 && dateStr != lastDateStr) {
+                            val labelX = x + barWidth / 2
+                            val labelY = height - paddingBottom + 28f
+                            
+                            // Horizontal date label (DD.MM format)
+                            val textWidth = dateTextPaint.measureText(dateStr)
+                            canvas.drawText(dateStr, labelX - textWidth / 2, labelY, dateTextPaint)
                             lastDateStr = dateStr
                         }
                     }

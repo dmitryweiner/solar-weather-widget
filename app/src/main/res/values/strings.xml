@@ -1,7 +1,13 @@
 <resources>
-    <string name="app_name">Solar weather widget</string>
-    <string name="appwidget_text">EXAMPLE</string>
-    <string name="add_widget">Add widget</string>
-    <string name="app_widget_description">This is an app widget description</string>
+    <string name="app_name">Солнечная погода</string>
+    <string name="widget_title">Планетарный K-индекс</string>
+    <string name="loading">Загрузка…</string>
+    <string name="updated_at">Обновлено: %s</string>
+    <string name="updated_placeholder">Обновлено: --:--</string>
+    <string name="error_prefix">Ошибка: %s</string>
+    <string name="no_data">Нет данных</string>
+    <string name="chart_description">График K-индекса</string>
     <string name="widget_description">Отображает планетарный K-индекс геомагнитной активности</string>
+    <string name="widget_add_instruction">Удерживайте палец на рабочем столе и выберите \"Виджеты\" для добавления виджета</string>
+    <string name="widget_already_added">Виджет уже добавлен на рабочий стол</string>
 </resources>

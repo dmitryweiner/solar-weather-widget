@@ -4,7 +4,7 @@ An Android home screen widget that displays the Planetary K-index (Kp) - a measu
 
 ## Features
 
-- 📊 **Bar Chart Visualization** - Displays the last 12 Kp index values
+- 📊 **Bar Chart Visualization** - Displays up to 24 Kp index values with DD.MM date labels
 - 🎨 **Color-Coded Activity Levels**:
   - 🟢 Green (< 4) - Quiet conditions
   - 🟡 Yellow (4-6) - Moderate activity
@@ -13,7 +13,13 @@ An Android home screen widget that displays the Planetary K-index (Kp) - a measu
 - 🔄 **Auto-Update** - Refreshes every 4 hours
 - 👆 **Manual Refresh** - Tap the widget to update immediately
 - 🌐 **Live Data** - Fetches data from NOAA Space Weather Prediction Center
-- 📱 **Resizable** - Adjust widget size to fit your home screen
+- 📱 **Flexible Resizing** - Resize from 4x2 to 1x1 cells
+- 📐 **Adaptive Layout** - Widget adapts to size changes:
+  - Height < 1 cell: Title is hidden
+  - Width adjusts number of data points shown (4-24)
+- ☀️ **Sun Icon** - Beautiful sun icon for easy identification
+- 🚀 **Quick Add** - Launching the app prompts to add widget to home screen
+- 🌍 **Multilingual** - Supports Russian, English, Hebrew, and Ukrainian
 
 ## What is the Kp Index?
 
@@ -144,26 +150,42 @@ dependencies {
 ```
 
 7. **Add widget to home screen**
+   
+   **Option A: Quick Add (Recommended)**
+   - Launch the app from your app drawer
+   - A dialog will appear to add the widget to your home screen
+   - Confirm the placement
+   
+   **Option B: Manual Add**
    - Long-press on your Android home screen
    - Select "Widgets"
-   - Find "Kp Index Widget"
+   - Find "Solar Weather" widget
    - Drag it to your home screen
 
 ## Project Structure
 
 ```
 app/src/main/
-├── java/com/example/kpwidget/
-│   └── KpIndexWidget.kt          # Main widget class
+├── java/com/dmitryweiner/solarweatherwidget/
+│   ├── KpIndexWidget.kt          # Main widget class
+│   └── MainActivity.kt           # Launcher activity for quick widget add
 ├── res/
 │   ├── layout/
-│   │   └── widget_layout.xml     # Widget UI layout
+│   │   └── kp_index_widget.xml   # Widget UI layout
 │   ├── drawable/
-│   │   └── widget_background.xml # Widget background shape
+│   │   ├── app_widget_background.xml  # Widget background shape
+│   │   ├── ic_widget_preview.xml      # Sun icon for widget picker
+│   │   └── ic_launcher_foreground.xml # Sun icon for app launcher
 │   ├── xml/
-│   │   └── widget_info.xml       # Widget metadata
+│   │   └── kp_index_widget_info.xml   # Widget metadata
 │   └── values/
-│       └── strings.xml            # String resources
+│       └── strings.xml            # String resources (Russian - default)
+│   └── values-en/
+│       └── strings.xml            # English strings
+│   └── values-iw/
+│       └── strings.xml            # Hebrew strings
+│   └── values-uk/
+│       └── strings.xml            # Ukrainian strings
 └── AndroidManifest.xml
 ```
 
@@ -235,6 +257,19 @@ Alpha channel values:
 **Widget looks stretched**
 - Adjust widget size on home screen
 - Modify `minWidth` and `minHeight` in `widget_info.xml`
+
+## Supported Languages
+
+The widget supports the following languages:
+
+| Language | Code | Status |
+|----------|------|--------|
+| Russian | ru | Default |
+| English | en | Full support |
+| Hebrew | iw | Full support |
+| Ukrainian | uk | Full support |
+
+The language is automatically selected based on your device settings.
 
 ## Data Source
 

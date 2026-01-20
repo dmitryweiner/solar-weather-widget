@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Сонячна погода</string>
+    <string name="widget_title">Планетарний K-індекс</string>
+    <string name="loading">Завантаження…</string>
+    <string name="updated_at">Оновлено: %s</string>
+    <string name="updated_placeholder">Оновлено: --:--</string>
+    <string name="error_prefix">Помилка: %s</string>
+    <string name="no_data">Немає даних</string>
+    <string name="chart_description">Графік K-індексу</string>
+    <string name="widget_description">Відображає планетарний K-індекс геомагнітної активності</string>
+    <string name="widget_add_instruction">Утримуйте палець на робочому столі та виберіть \"Віджети\" для додавання віджета</string>
+    <string name="widget_already_added">Віджет вже додано на робочий стіл</string>
+</resources>
