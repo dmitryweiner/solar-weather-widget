@@ -30,7 +30,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/updated_placeholder"
-        android:textSize="12sp"
+        android:textSize="10sp"
         android:textColor="#AAAAAA"
         android:gravity="center"
         android:paddingTop="4dp"/>
