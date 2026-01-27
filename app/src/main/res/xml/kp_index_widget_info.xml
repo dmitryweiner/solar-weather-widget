@@ -14,4 +14,6 @@
     android:widgetCategory="home_screen"
     android:description="@string/widget_description"
     android:previewImage="@drawable/ic_widget_preview"
-    android:previewLayout="@layout/kp_index_widget"/>
+    android:previewLayout="@layout/kp_index_widget"
+    android:configure="com.dmitryweiner.solarweatherwidget.WidgetConfigureActivity"
+    android:widgetFeatures="reconfigurable"/>

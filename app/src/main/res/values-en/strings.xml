@@ -11,4 +11,23 @@
     <string name="widget_description">Displays the planetary K-index of geomagnetic activity</string>
     <string name="widget_add_instruction">Long press on your home screen and select \"Widgets\" to add the widget</string>
     <string name="widget_already_added">Widget is already on the home screen</string>
+
+    <!-- Error messages -->
+    <string name="error_no_internet">No internet connection</string>
+    <string name="error_timeout">Server not responding</string>
+    <string name="error_invalid_data">Invalid data format</string>
+    <string name="error_server">Server error</string>
+    <string name="error_unknown">Unknown error</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Widget Settings</string>
+    <string name="settings_display_options">Display</string>
+    <string name="settings_show_title">Show title</string>
+    <string name="settings_show_info">Show info row</string>
+    <string name="settings_data_source">Data source</string>
+    <string name="data_source_kp">K-index (Kp)</string>
+    <string name="data_source_proton">Proton Flux</string>
+    <string name="data_source_xray">X-ray Flux</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
 </resources>

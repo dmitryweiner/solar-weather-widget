@@ -30,14 +30,16 @@ object KpDataRepository {
 
             val responseCode = connection.responseCode
             if (responseCode != 200) {
-                throw IOException("NOAA API returned HTTP $responseCode")
+                Log.e(TAG, "NOAA API returned HTTP $responseCode")
+                throw DataError.ServerError
             }
 
             val jsonString = connection.inputStream.bufferedReader().use { it.readText() }
             val jsonArray = JSONArray(jsonString)
 
             if (jsonArray.length() <= 1) {
-                throw JSONException("Empty data received from NOAA API")
+                Log.e(TAG, "Empty data received from NOAA API")
+                throw DataError.InvalidData
             }
 
             val dataList = mutableListOf<KpData>()
@@ -49,21 +51,23 @@ object KpDataRepository {
             }
 
             dataList.takeLast(limit)
+        } catch (e: DataError) {
+            throw e
         } catch (e: UnknownHostException) {
             Log.e(TAG, "No internet connection or DNS resolution failed for NOAA API", e)
-            throw IOException("No internet connection")
+            throw DataError.NoInternet
         } catch (e: SocketTimeoutException) {
             Log.e(TAG, "Connection timeout while fetching Kp data from $API_URL", e)
-            throw IOException("Server timeout")
+            throw DataError.Timeout
         } catch (e: JSONException) {
             Log.e(TAG, "Failed to parse JSON response from NOAA API", e)
-            throw IOException("Invalid data format from NOAA")
+            throw DataError.InvalidData
         } catch (e: IOException) {
             Log.e(TAG, "Network error while fetching Kp data: ${e.message}", e)
-            throw e
+            throw DataError.NoInternet
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error while fetching Kp data: ${e.javaClass.simpleName} - ${e.message}", e)
-            throw IOException("Unknown error: ${e.message}")
+            throw DataError.Unknown(e.message)
         } finally {
             connection?.disconnect()
         }

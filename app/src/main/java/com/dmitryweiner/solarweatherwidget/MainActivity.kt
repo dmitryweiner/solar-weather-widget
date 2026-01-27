@@ -3,6 +3,7 @@ package com.dmitryweiner.solarweatherwidget
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 
@@ -28,16 +29,14 @@ class MainActivity : Activity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
+            finish()
         } else {
-            // Widget already exists - show a message
-            Toast.makeText(
-                this,
-                getString(R.string.widget_already_added),
-                Toast.LENGTH_SHORT
-            ).show()
+            // Widget already exists - open settings for the first widget
+            val intent = Intent(this, WidgetConfigureActivity::class.java).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, existingWidgets.first())
+            }
+            startActivity(intent)
+            finish()
         }
-        
-        // Close the activity immediately
-        finish()
     }
 }

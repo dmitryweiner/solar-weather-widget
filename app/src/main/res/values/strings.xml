@@ -10,4 +10,23 @@
     <string name="widget_description">Отображает планетарный K-индекс геомагнитной активности</string>
     <string name="widget_add_instruction">Удерживайте палец на рабочем столе и выберите \"Виджеты\" для добавления виджета</string>
     <string name="widget_already_added">Виджет уже добавлен на рабочий стол</string>
+
+    <!-- Error messages -->
+    <string name="error_no_internet">Нет подключения к интернету</string>
+    <string name="error_timeout">Сервер не отвечает</string>
+    <string name="error_invalid_data">Неверный формат данных</string>
+    <string name="error_server">Ошибка сервера</string>
+    <string name="error_unknown">Неизвестная ошибка</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Настройки виджета</string>
+    <string name="settings_display_options">Отображение</string>
+    <string name="settings_show_title">Показывать заголовок</string>
+    <string name="settings_show_info">Показывать информационную строку</string>
+    <string name="settings_data_source">Источник данных</string>
+    <string name="data_source_kp">K-индекс (Kp)</string>
+    <string name="data_source_proton">Поток протонов</string>
+    <string name="data_source_xray">Рентгеновское излучение</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
 </resources>

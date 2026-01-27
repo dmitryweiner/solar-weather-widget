@@ -11,4 +11,23 @@
     <string name="widget_description">מציג את מדד K הפלנטרי של פעילות גיאומגנטית</string>
     <string name="widget_add_instruction">לחץ לחיצה ארוכה על מסך הבית ובחר \"וידג\'טים\" כדי להוסיף את הווידג\'ט</string>
     <string name="widget_already_added">הווידג\'ט כבר נמצא במסך הבית</string>
+
+    <!-- Error messages -->
+    <string name="error_no_internet">אין חיבור לאינטרנט</string>
+    <string name="error_timeout">השרת אינו מגיב</string>
+    <string name="error_invalid_data">פורמט נתונים שגוי</string>
+    <string name="error_server">שגיאת שרת</string>
+    <string name="error_unknown">שגיאה לא ידועה</string>
+
+    <!-- Settings -->
+    <string name="settings_title">הגדרות וידג\'ט</string>
+    <string name="settings_display_options">תצוגה</string>
+    <string name="settings_show_title">הצג כותרת</string>
+    <string name="settings_show_info">הצג שורת מידע</string>
+    <string name="settings_data_source">מקור נתונים</string>
+    <string name="data_source_kp">מדד K (Kp)</string>
+    <string name="data_source_proton">שטף פרוטונים</string>
+    <string name="data_source_xray">קרני רנטגן</string>
+    <string name="save">שמור</string>
+    <string name="cancel">ביטול</string>
 </resources>
