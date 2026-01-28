@@ -92,9 +92,12 @@ class WidgetConfigureActivity : Activity() {
 
         WidgetSettings.save(this, appWidgetId, settings)
 
-        // Update the widget
+        // Update the widget with actual dimensions
         val appWidgetManager = AppWidgetManager.getInstance(this)
-        KpIndexWidget.updateAppWidget(this, appWidgetManager, appWidgetId)
+        val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+        val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
+        val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)
+        KpIndexWidget.updateAppWidget(this, appWidgetManager, appWidgetId, minWidth, minHeight)
 
         // Return success
         val resultValue = Intent().apply {

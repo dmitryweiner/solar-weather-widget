@@ -109,7 +109,8 @@
                 android:layout_weight="1"
                 android:text="@string/cancel"
                 android:layout_marginEnd="8dp"
-                style="@style/Widget.Material3.Button.OutlinedButton"/>
+                android:backgroundTint="#555555"
+                android:textColor="@android:color/white"/>
 
             <Button
                 android:id="@+id/button_save"

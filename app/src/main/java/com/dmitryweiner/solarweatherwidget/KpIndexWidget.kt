@@ -13,6 +13,7 @@ import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import com.dmitryweiner.solarweatherwidget.data.DataError
+import com.dmitryweiner.solarweatherwidget.data.DataSource
 import com.dmitryweiner.solarweatherwidget.data.SolarDataRepository
 import com.dmitryweiner.solarweatherwidget.data.WidgetSettings
 import com.dmitryweiner.solarweatherwidget.ui.ChartRenderer
@@ -51,7 +52,8 @@ class KpIndexWidget : AppWidgetProvider() {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
         val minWidth = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
         val minHeight = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110)
-        updateAppWidget(context, appWidgetManager, appWidgetId, minWidth, minHeight)
+        // Don't reload data on resize, just update layout with cached bitmap
+        updateAppWidget(context, appWidgetManager, appWidgetId, minWidth, minHeight, fetchData = false)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -136,7 +138,8 @@ class KpIndexWidget : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int,
             widgetWidth: Int = 250,
-            widgetHeight: Int = 110
+            widgetHeight: Int = 110,
+            fetchData: Boolean = true
         ) {
             val views = RemoteViews(context.packageName, R.layout.kp_index_widget)
             val settings = WidgetSettings.load(context, appWidgetId)
@@ -150,18 +153,26 @@ class KpIndexWidget : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
 
+            // Set dynamic title based on data source
+            val titleText = when (settings.dataSource) {
+                DataSource.KP_INDEX -> context.getString(R.string.data_source_kp)
+                DataSource.PROTON_FLUX -> context.getString(R.string.data_source_proton)
+                DataSource.XRAY_FLUX -> context.getString(R.string.data_source_xray)
+            }
+            views.setTextViewText(R.id.widget_title, titleText)
+
             // Adaptive layout based on widget height and user settings
-            // Height <= 1 cell (~70dp): show only chart (override settings)
-            // Height <= 2 cells (~110dp): hide title (override settings), show info row based on settings
+            // Height <= 1 cell (~80dp): show only chart (override settings)
+            // Height <= 2 cells (~120dp): hide title (override settings), show info row based on settings
             // Height > 2 cells: respect user settings
             when {
-                widgetHeight <= 70 -> {
-                    // Very small widget - show only chart
+                widgetHeight <= 80 -> {
+                    // Very small widget (1 cell) - show only chart
                     views.setViewVisibility(R.id.widget_title, View.GONE)
                     views.setViewVisibility(R.id.last_update, View.GONE)
                 }
-                widgetHeight <= 110 -> {
-                    // Small widget - hide title, info row based on settings
+                widgetHeight <= 120 -> {
+                    // Small widget (2 cells) - hide title, info row based on settings
                     views.setViewVisibility(R.id.widget_title, View.GONE)
                     views.setViewVisibility(
                         R.id.last_update,
@@ -194,6 +205,13 @@ class KpIndexWidget : AppWidgetProvider() {
                 if (cachedBitmap != null) {
                     views.setImageViewBitmap(R.id.chart_image, cachedBitmap)
                 }
+
+                // If not fetching new data (e.g., on resize), just update layout with cached bitmap
+                if (!fetchData) {
+                    appWidgetManager.updateAppWidget(appWidgetId, views)
+                    return@launch
+                }
+
                 views.setTextViewText(R.id.last_update, context.getString(R.string.loading))
                 appWidgetManager.updateAppWidget(appWidgetId, views)
 
